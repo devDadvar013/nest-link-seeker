@@ -13,14 +13,25 @@ function databaseConfig(): TypeOrmModuleOptions {
   // 1) Postgres when a DATABASE_URL is provided (local dev or Vercel).
   if (dbUrl) {
     logger.log(`Using PostgreSQL: ${dbUrl.split('@')[1] ?? 'configured URL'}`);
+
+    // Strip query params (sslmode/channel_binding) — pg v9 treats sslmode=require
+    // as verify-full, which can hang TLS negotiation with Neon. We control SSL
+    // explicitly via the `ssl` option instead.
+    const cleanUrl = dbUrl.split('?')[0];
+
     return {
       type: 'postgres',
-      url: dbUrl,
+      url: cleanUrl,
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
       ssl: {
         rejectUnauthorized: false,
       },
+      extra: {
+        // Fail the connection fast instead of hanging the function for 30s+
+        connectionTimeoutMillis: 8000,
+      },
+      retryAttempts: 1,
     };
   }
 
