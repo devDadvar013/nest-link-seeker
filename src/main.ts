@@ -3,24 +3,13 @@ import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import serverless from 'serverless-http';
 import { AppModule } from './app.module';
-import { LoadDataService } from './load-data/load-data.service';
 
 const logger = new Logger('Bootstrap');
 
 async function createApp() {
   const app = await NestFactory.create(AppModule, new ExpressAdapter());
-  const loadService = app.get(LoadDataService);
 
-  // Load CSV data if the database is empty (skips quickly when rows exist).
-  // On Vercel this only runs on cold starts and no-ops once data is present.
-  try {
-    const result = await loadService.loadFromCsv();
-    if (result.loaded > 0) {
-      logger.log(`Loaded ${result.loaded} users into database (${result.errors} errors)`);
-    }
-  } catch (e) {
-    logger.warn(`Data load skipped/failed: ${(e as Error).message}`);
-  }
+  // Note: CSV data is loaded manually (npm run load:data) — not on startup.
 
   app.enableCors({ origin: true, methods: 'GET,POST,PUT,DELETE,OPTIONS' });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
